@@ -1,0 +1,21 @@
+{
+  "id": "animals",
+  "title": "Animals",
+  "scene": "meadow",
+  "bg": "#7fd1ae",
+  "back": "#ff9f43",
+  "categories": [
+    { "id": "pet", "label": "pets", "image": "assets/art/dog.svg" },
+    { "id": "wild", "label": "wild animals", "image": "assets/art/lion.svg" }
+  ],
+  "items": [
+    { "id": "dog", "label": "dog", "category": "pet", "image": "assets/art/dog.svg" },
+    { "id": "cat", "label": "cat", "category": "pet", "image": "assets/art/cat.svg" },
+    { "id": "rabbit", "label": "rabbit", "category": "pet", "image": "assets/art/rabbit.svg" },
+    { "id": "fish", "label": "fish", "category": "pet", "image": "assets/art/fish.svg" },
+    { "id": "lion", "label": "lion", "category": "wild", "image": "assets/art/lion.svg" },
+    { "id": "elephant", "label": "elephant", "category": "wild", "image": "assets/art/elephant.svg" },
+    { "id": "monkey", "label": "monkey", "category": "wild", "image": "assets/art/monkey.svg" },
+    { "id": "panda", "label": "panda", "category": "wild", "image": "assets/art/panda.svg" }
+  ]
+}

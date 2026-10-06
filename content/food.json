@@ -1,0 +1,21 @@
+{
+  "id": "food",
+  "title": "Yummy food",
+  "scene": "kitchen",
+  "bg": "#ffb4a2",
+  "back": "#6c8cff",
+  "categories": [
+    { "id": "fruit", "label": "fruit", "image": "assets/art/apple.svg" },
+    { "id": "treat", "label": "treats", "image": "assets/art/donut.svg" }
+  ],
+  "items": [
+    { "id": "apple", "label": "apple", "category": "fruit", "image": "assets/art/apple.svg" },
+    { "id": "banana", "label": "banana", "category": "fruit", "image": "assets/art/banana.svg" },
+    { "id": "grapes", "label": "grapes", "category": "fruit", "image": "assets/art/grapes.svg" },
+    { "id": "strawberry", "label": "strawberry", "category": "fruit", "image": "assets/art/strawberry.svg" },
+    { "id": "pizza", "label": "pizza", "category": "treat", "image": "assets/art/pizza.svg" },
+    { "id": "cookie", "label": "cookie", "category": "treat", "image": "assets/art/cookie.svg" },
+    { "id": "donut", "label": "donut", "category": "treat", "image": "assets/art/donut.svg" },
+    { "id": "icecream", "label": "ice cream", "category": "treat", "image": "assets/art/icecream.svg" }
+  ]
+}

@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <title>Speech therapy reward games - demo</title>
+  <style>
+    :root { color-scheme: dark; }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; height: 100%; background: #14141c; color: #fff; font-family: "Trebuchet MS", system-ui, sans-serif; }
+    body { display: flex; flex-direction: column; }
+    #bar { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; padding: 8px 14px; background: #1d1d29; font-size: 14px; }
+    #status[data-ok="yes"]::before { content: "● "; color: #4ade80; }
+    #status[data-ok="no"]::before { content: "● "; color: #fbbf24; }
+    #mode { color: #9aa0b4; }
+    .grow { flex: 1; }
+    #controls { display: flex; flex-wrap: wrap; gap: 8px 18px; align-items: center; padding: 8px 14px; background: #181822; border-top: 1px solid #2a2a3a; font-size: 14px; }
+    .group { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+    .group > span { color: #9aa0b4; margin-right: 2px; }
+    button { font: inherit; padding: 8px 14px; min-height: 42px; border-radius: 10px; border: 1px solid #3a3a52; background: #272738; color: #fff; cursor: pointer; }
+    button:hover:not(:disabled) { background: #33334a; }
+    button:disabled { opacity: .45; cursor: default; }
+    button.on { background: #5b6cff; border-color: #8793ff; }
+    button.primary { background: #19a974; border-color: #34d399; font-weight: 700; }
+    #targetName { min-width: 90px; text-align: center; font-weight: 700; font-size: 16px; }
+    #game { flex: 1; min-height: 0; }
+    #start { margin: auto; text-align: center; max-width: 560px; padding: 24px; }
+    #start h1 { font-size: 30px; margin: 0 0 8px; }
+    #start p { color: #b4b8c8; line-height: 1.55; }
+    #start .row { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-top: 20px; }
+    [hidden] { display: none !important; }
+  </style>
+</head>
+<body>
+  <section id="start" hidden>
+    <h1>Speech therapy reward games</h1>
+    <p>A therapist shows a speech card, then starts a one-minute reward game that the student plays. Both screens show the same game live, and the difficulty adapts to how the student does.</p>
+    <p>Start a session, then open the student view in a second tab or on another device.</p>
+    <div class="row">
+      <button id="startTherapist" class="primary">Start as therapist</button>
+      <button id="startSolo">Try it alone</button>
+    </div>
+  </section>
+
+  <div id="bar" hidden>
+    <strong id="roleLabel"></strong>
+    <span id="status" data-ok="no"></span>
+    <span id="mode"></span>
+    <span class="grow"></span>
+    <button id="copyLink">Copy student link</button>
+    <button id="openStudent">Open student view</button>
+  </div>
+
+  <div id="controls" hidden>
+    <div class="group"><span>Theme</span><span id="packs" class="group"></span></div>
+    <div class="group"><span>Game</span><span id="templates" class="group"></span></div>
+    <div class="group"><span>Level</span><span id="levels" class="group"></span></div>
+    <div class="group">
+      <span>Speech card</span>
+      <button id="prev" aria-label="Previous card">◀</button>
+      <strong id="targetName"></strong>
+      <button id="next" aria-label="Next card">▶</button>
+    </div>
+    <div class="group">
+      <button id="startReward" class="primary">Start reward game (60 s)</button>
+      <button id="backToCards" hidden>Back to speech cards</button>
+      <button id="newGame" hidden>New game</button>
+    </div>
+  </div>
+
+  <div id="game" hidden></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/phaser@3.80.1/dist/phaser.min.js"></script>
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>

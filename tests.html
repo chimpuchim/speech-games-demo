@@ -1,0 +1,218 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Tests</title>
+  <style>
+    body { font-family: system-ui, sans-serif; padding: 24px; max-width: 760px; }
+    li { margin: 3px 0; font-size: 14px; }
+    .pass { color: #15803d; }
+    .fail { color: #b91c1c; font-weight: 600; }
+  </style>
+</head>
+<body>
+  <h1>Game logic and session tests</h1>
+  <p id="summary">Running…</p>
+  <ul id="list"></ul>
+  <script type="module">
+    import { TEMPLATES } from './js/logic/index.js';
+    import { Authority, nextLevel } from './js/authority.js';
+
+    const index = await (await fetch('content/index.json')).json();
+    const packs = {};
+    for (const id of index.packs) packs[id] = await (await fetch('content/' + id + '.json')).json();
+    const pack = packs.animals;
+
+    const results = [];
+    const test = (name, fn) => {
+      try { fn(); results.push([name, true]); } catch (e) { results.push([name, false, e.message]); }
+    };
+    const expect = (cond, msg) => { if (!cond) throw new Error(msg || 'assertion failed'); };
+
+    // ---- content ----
+    test('every pack has two categories and four items in each', () => {
+      for (const p of Object.values(packs)) {
+        expect(p.categories.length === 2, p.id + ' categories');
+        for (const c of p.categories) expect(p.items.filter((i) => i.category === c.id).length === 4, p.id + ' ' + c.id);
+      }
+    });
+
+    // ---- determinism ----
+    test('every template builds the same game from the same seed', () => {
+      for (const t of Object.values(TEMPLATES)) {
+        expect(JSON.stringify(t.create(pack, 3, 2)) === JSON.stringify(t.create(pack, 3, 2)), t.id);
+      }
+    });
+    test('different rounds give different games', () => {
+      for (const t of Object.values(TEMPLATES)) {
+        expect(JSON.stringify(t.create(pack, 1, 2)) !== JSON.stringify(t.create(pack, 2, 2)), t.id);
+      }
+    });
+
+    // ---- match ----
+    const M = TEMPLATES.match;
+    const pairOf = (g) => {
+      const a = g.cards.find((c) => !c.matched && !c.faceUp);
+      return [a.id, g.cards.find((c) => c.id !== a.id && c.pairId === a.pairId && !c.matched).id];
+    };
+    test('match: level sets the number of pairs', () => {
+      expect(M.create(pack, 0, 1).pairs === 3 && M.create(pack, 0, 2).pairs === 4 && M.create(pack, 0, 3).pairs === 6);
+    });
+    test('match: a mismatch counts a mistake and asks for hideMismatch', () => {
+      let g = M.create(pack, 0, 2);
+      const a = g.cards[0];
+      const b = g.cards.find((c) => c.pairId !== a.pairId);
+      g = M.apply(g, { type: 'flip', cardId: a.id });
+      g = M.apply(g, { type: 'flip', cardId: b.id });
+      expect(g.mistakes === 1 && g.pending.action.type === 'hideMismatch');
+      g = M.apply(g, { type: 'hideMismatch' });
+      expect(g.flipped.length === 0 && g.pending === null);
+    });
+    test('match: a third flip is rejected while two cards are up', () => {
+      let g = M.create(pack, 0, 2);
+      const a = g.cards[0];
+      const b = g.cards.find((c) => c.pairId !== a.pairId);
+      g = M.apply(g, { type: 'flip', cardId: a.id });
+      g = M.apply(g, { type: 'flip', cardId: b.id });
+      expect(M.apply(g, { type: 'flip', cardId: g.cards.find((c) => !c.faceUp).id }) === null);
+    });
+    test('match: clearing every pair wins with no mistakes', () => {
+      let g = M.create(pack, 0, 1);
+      while (g.status === 'playing') {
+        const [a, b] = pairOf(g);
+        g = M.apply(M.apply(g, { type: 'flip', cardId: a }), { type: 'flip', cardId: b });
+      }
+      expect(g.status === 'won' && g.mistakes === 0);
+    });
+
+    // ---- sort ----
+    const S = TEMPLATES.sort;
+    test('sort: right category places the item, wrong one counts a mistake', () => {
+      let g = S.create(pack, 0, 1);
+      const item = g.items[0];
+      const wrong = g.categories.find((c) => c.id !== item.category).id;
+      const bad = S.apply(g, { type: 'place', itemId: item.id, category: wrong });
+      expect(bad.mistakes === 1 && !bad.items[0].placed && bad.lastWrong.itemId === item.id);
+      const good = S.apply(g, { type: 'place', itemId: item.id, category: item.category });
+      expect(good.items[0].placed && good.placedCount === 1);
+    });
+    test('sort: placing every item wins and an item cannot be placed twice', () => {
+      let g = S.create(pack, 0, 1);
+      for (const item of g.items) g = S.apply(g, { type: 'place', itemId: item.id, category: item.category });
+      expect(g.status === 'won');
+      expect(S.apply(g, { type: 'place', itemId: 0, category: g.items[0].category }) === null);
+    });
+
+    // ---- sequence ----
+    const Q = TEMPLATES.sequence;
+    test('sequence: input only works after the pattern was shown', () => {
+      const g = Q.create(pack, 0, 1);
+      expect(g.status === 'showing' && g.pending.action.type === 'startInput');
+      expect(Q.apply(g, { type: 'tap', idx: 0 }) === null);
+    });
+    test('sequence: a wrong tap replays the same pattern, correct taps grow it and win', () => {
+      let g = Q.apply(Q.create(pack, 0, 1), { type: 'startInput' });
+      const wrongIdx = (g.pattern[0] + 1) % 4;
+      const failed = Q.apply(g, { type: 'tap', idx: wrongIdx });
+      expect(failed.status === 'showing' && failed.mistakes === 1 && failed.length === g.length && failed.showId === g.showId + 1);
+      let game = g;
+      while (game.status !== 'won') {
+        if (game.status === 'showing') game = Q.apply(game, { type: 'startInput' });
+        game = Q.apply(game, { type: 'tap', idx: game.pattern[game.step] });
+      }
+      expect(game.length === game.top && game.mistakes === 0);
+    });
+
+    // ---- odd one out ----
+    const O = TEMPLATES.odd;
+    test('odd: every question has exactly one odd answer', () => {
+      const g = O.create(pack, 0, 3);
+      for (const q of g.questions) {
+        const cats = q.options.map((o) => pack.items.find((i) => i.label === o.label).category);
+        const odd = cats.filter((c) => c !== cats[q.answer]).length;
+        expect(odd === q.options.length - 1 && cats.filter((c) => c === cats[q.answer]).length === 1);
+      }
+    });
+    test('odd: wrong picks count mistakes, right picks move on, last one wins', () => {
+      let g = O.create(pack, 0, 1);
+      const q = g.questions[0];
+      const wrong = q.options.findIndex((_, i) => i !== q.answer);
+      g = O.apply(g, { type: 'pick', idx: wrong });
+      expect(g.mistakes === 1 && g.current === 0);
+      while (g.status === 'playing') g = O.apply(g, { type: 'pick', idx: g.questions[g.current].answer });
+      expect(g.status === 'won' && g.mistakes === 1);
+    });
+
+    // ---- adaptive difficulty ----
+    test('level goes up with a clean game, down with many mistakes, and stays within 1-3', () => {
+      expect(nextLevel(1, 0) === 2 && nextLevel(3, 0) === 3);
+      expect(nextLevel(2, 1) === 2 && nextLevel(2, 2) === 2);
+      expect(nextLevel(2, 3) === 1 && nextLevel(1, 9) === 1);
+    });
+
+    // ---- session authority ----
+    test('session: only the therapist can control the session; the student can only play', () => {
+      const changes = [];
+      const a = new Authority({ packs, packId: 'animals', onChange: (s) => changes.push(s) });
+      expect(!a.handle({ type: 'startReward' }, 'student'));
+      expect(a.state.phase === 'cards');
+      expect(a.handle({ type: 'startReward' }, 'therapist') && a.state.phase === 'game');
+      const g = a.state.game;
+      const card = g.cards[0].id;
+      expect(a.handle({ type: 'game', action: { type: 'flip', cardId: card } }, 'student'));
+      expect(!a.handle({ type: 'setPack', packId: 'food' }, 'student'));
+      expect(!a.handle({ type: 'nonsense' }, 'therapist'));
+      a.dispose();
+    });
+    test('session: versions only go up and speech cards cycle', () => {
+      const a = new Authority({ packs, packId: 'animals', onChange: () => {} });
+      const v = a.state.version;
+      a.handle({ type: 'target', delta: 1 }, 'therapist');
+      expect(a.state.targetIndex === 1 && a.state.version > v);
+      a.handle({ type: 'target', delta: -1 }, 'therapist');
+      a.handle({ type: 'target', delta: -1 }, 'therapist');
+      expect(a.state.targetIndex === a.state.targets.length - 1);
+      a.dispose();
+    });
+    test('session: changing theme or template rebuilds the content', () => {
+      const a = new Authority({ packs, packId: 'animals', onChange: () => {} });
+      a.handle({ type: 'setPack', packId: 'food' }, 'therapist');
+      expect(a.state.packId === 'food' && a.state.theme.bg === packs.food.bg);
+      a.handle({ type: 'startReward' }, 'therapist');
+      a.handle({ type: 'setTemplate', template: 'sort' }, 'therapist');
+      expect(a.state.template === 'sort' && a.state.game.items);
+      a.dispose();
+    });
+    test('session: every published state is consistent (game exists in game phase, matches its template)', () => {
+      const seen = [];
+      const a = new Authority({ packs, packId: 'animals', onChange: (s) => seen.push(s) });
+      a.handle({ type: 'startReward' }, 'therapist');
+      for (const t of ['sort', 'sequence', 'odd', 'match']) a.handle({ type: 'setTemplate', template: t }, 'therapist');
+      a.handle({ type: 'setLevel', level: 3 }, 'therapist');
+      a.handle({ type: 'newGame' }, 'therapist');
+      a.handle({ type: 'backToCards' }, 'therapist');
+      for (const s of seen) {
+        expect(s.phase !== 'game' || s.game, 'game phase without a game at v' + s.version);
+        if (s.phase === 'game') expect(s.game.level === s.level, 'level mismatch at v' + s.version);
+      }
+      const kinds = { match: 'cards', sort: 'items', sequence: 'buttons', odd: 'questions' };
+      for (const s of seen) if (s.phase === 'game') expect(kinds[s.template] in s.game, 'wrong game type for ' + s.template);
+      a.dispose();
+    });
+    test('session: a clean win raises the level for the next game', async () => {
+      const a = new Authority({ packs, packId: 'animals', template: 'sort', onChange: () => {} });
+      a.handle({ type: 'startReward' }, 'therapist');
+      for (const item of a.state.game.items) a.handle({ type: 'game', action: { type: 'place', itemId: item.id, category: item.category } }, 'student');
+      expect(a.state.lastResult.from === 1 && a.state.lastResult.to === 2);
+      a.dispose();
+    });
+
+    const failed = results.filter((r) => !r[1]);
+    document.getElementById('summary').textContent = failed.length ? failed.length + ' failed' : 'All ' + results.length + ' tests passed';
+    document.title = failed.length ? 'FAIL' : 'PASS';
+    document.getElementById('list').innerHTML = results
+      .map(([n, ok, m]) => '<li class="' + (ok ? 'pass' : 'fail') + '">' + (ok ? 'PASS' : 'FAIL') + ' - ' + n + (m ? ' (' + m + ')' : '') + '</li>')
+      .join('');
+  </script>
+</body>
+</html>
