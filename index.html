@@ -28,6 +28,8 @@
     #start h1 { font-size: 30px; margin: 0 0 8px; }
     #start p { color: #b4b8c8; line-height: 1.55; }
     #start .row { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-top: 20px; }
+    #rotate { display: none; text-align: center; padding: 10px 14px; background: #1d1d29; color: #fbd34d; font-size: 15px; }
+    @media (orientation: portrait) and (max-width: 700px) { body.single #rotate { display: block; } }
     [hidden] { display: none !important; }
   </style>
 </head>
@@ -68,6 +70,7 @@
     </div>
   </div>
 
+  <div id="rotate">Turn your phone sideways for a bigger game</div>
   <div id="game" hidden></div>
 
   <script src="https://cdn.jsdelivr.net/npm/phaser@3.80.1/dist/phaser.min.js"></script>

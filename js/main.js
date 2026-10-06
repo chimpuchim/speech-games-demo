@@ -178,6 +178,7 @@ async function main() {
 
   $('start').hidden = true;
   $('bar').hidden = !!autoGame;
+  if (autoGame) document.body.classList.add('single');
   $('game').hidden = false;
   $('roleLabel').textContent = role === 'therapist' ? 'Therapist view' : 'Student view';
   wireStatus(transport);
